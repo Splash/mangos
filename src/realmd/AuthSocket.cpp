@@ -469,7 +469,7 @@ bool AuthSocket::_HandleLogonChallenge()
                     result = WOW_SUCCESS;
 
                     uint8 secLevel = (*qresult)[4].GetUInt8();
-                    _accountSecurityLevel = secLevel <= SEC_SUPERADMIN ? AccountTypes(secLevel) : SEC_SUPERADMIN;
+                    _accountSecurityLevel = secLevel <= SEC_ADMINISTRATOR ? AccountTypes(secLevel) : SEC_ADMINISTRATOR;
 
                     _localizationName.resize(4);
                     for (int i = 0; i < 4; ++i)
