@@ -3,13 +3,13 @@ REM ****************************************************************************
 REM Set your compiler and another features here. Possible VC1, VC11 
 REM currently possible VC10 (MS Visual studio 10 Pro) and VC11 (MS Visual studio 11 or 2012 Pro/Ultimate)
 REM Warning! VS Express edition not supported! Also need check path (below) to VC10/11 binary
-SET compiler=VC11
+SET compiler=VC10
 REM Install path for MaNGOS (in this be created ./bin and ./etc folders)
-SET INSTALL_PATH="C:\\GAMES\\MaNGOS"
+SET INSTALL_PATH="D:\\GAMES\\MaNGOS"
 rem Platform for build. Possible Win32, Win64. Warning! Win64 build possible only on 64-bit main OS!
-SET BUILD_PLATFORM=Win32
+SET BUILD_PLATFORM=Win64
 rem Count of cores on PC, where project compiled. for speedup only
-SET CORE_NUMBER=1
+SET CORE_NUMBER=2
 rem Used mangos memory manager. Possible managers - STD, TBB (not recommended), FASTMM (default)
 SET MEMORY_MANAGER=FASTMM
 REM *****************************************************************************************

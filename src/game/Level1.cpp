@@ -172,17 +172,17 @@ bool ChatHandler::HandleNameAnnounceCommand(char* args)
       case SEC_GAMEMASTER:
         strid = LANG_SYSTEMMESSAGE_GAMEMASTER;
         break;
-      case SEC_ADMINISTRATOR:
-        strid = LANG_SYSTEMMESSAGE_ADMINISTRATOR;
-        break;
-	  case SEC_HEADGM:
+      case SEC_HEADGM:
         strid = LANG_SYSTEMMESSAGE_HEADGM;
         break;
 	  case SEC_DEVELOPER:
         strid = LANG_SYSTEMMESSAGE_DEVELOPER;
         break;
-	  case SEC_SUPERADMIN:
-        strid = LANG_SYSTEMMESSAGE_SUPERADMIN;
+	  case SEC_HEADDEVELOPER:
+        strid = LANG_SYSTEMMESSAGE_HEADDEVELOPER;
+        break;
+	  case SEC_ADMINISTRATOR:
+        strid = LANG_SYSTEMMESSAGE_ADMINISTRATOR;
         break;
       default:
         return false;
