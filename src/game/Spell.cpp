@@ -2184,8 +2184,11 @@ void Spell::SetTargetMap(SpellEffectIndex effIndex, uint32 targetMode, UnitList&
                 switch (m_spellInfo->Id)
                 {
                     case 30843:                                             // Enfeeble
+                    case 31347:                                             // Doom
                     case 37676:                                             // Insidious Whisper
                     case 38028:                                             // Watery Grave
+                    case 40618:                                             // Insignificance
+                    case 41376:                                             // Spite
                         if (Unit* pVictim = m_caster->getVictim())
                             targetUnitMap.remove(pVictim);
                         break;
@@ -4732,6 +4735,35 @@ void Spell::SendChannelUpdate(uint32 time)
 {
     if (time == 0)
     {
+        // Temp solution (ha-a-ack...) from cmangos - need rewrite to UnitStates
+        // Reset farsight for some possessing auras of possessed summoned (as they might work with different aura types)
+        if (m_spellInfo->HasAttribute(SPELL_ATTR_EX_FARSIGHT) && m_caster->GetTypeId() == TYPEID_PLAYER && m_caster->GetCharmGuid()
+                && !IsSpellHaveAura(m_spellInfo, SPELL_AURA_MOD_POSSESS) && !IsSpellHaveAura(m_spellInfo, SPELL_AURA_MOD_POSSESS_PET))
+        {
+            Player* player = (Player*)m_caster;
+            // These Auras are applied to self, so get the possessed first
+            Unit* possessed = player->GetCharm();
+
+            player->SetCharm(NULL);
+            if (possessed)
+                player->SetClientControl(possessed, 0);
+            player->SetMover(NULL);
+            player->SetViewPoint(NULL);
+            player->RemovePetActionBar();
+
+            if (possessed)
+            {
+                possessed->clearUnitState(UNIT_STAT_CONTROLLED);
+                possessed->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PLAYER_CONTROLLED);
+                possessed->SetCharmerGuid(ObjectGuid());
+                // TODO - Requires more specials for target?
+
+                // Some possessed might want to despawn?
+                if (possessed->GetUInt32Value(UNIT_CREATED_BY_SPELL) == m_spellInfo->Id && possessed->GetTypeId() == TYPEID_UNIT)
+                    ((Creature*)possessed)->ForcedDespawn();
+            }
+        }
+
         m_caster->RemoveAurasByCasterSpell(m_spellInfo->Id, m_caster->GetObjectGuid());
 
         ObjectGuid target_guid = m_caster->GetChannelObjectGuid();
@@ -5314,6 +5346,10 @@ SpellCastResult Spell::CheckCast(bool strict)
                 else return SPELL_FAILED_STUNNED;
             }
         }
+
+        // Disengage-like spells allow use only in combat
+        if (m_spellInfo->HasAttribute(SPELL_ATTR_STOP_ATTACK_TARGET) && m_spellInfo->HasAttribute(SPELL_ATTR_EX2_UNK26) && !m_caster->isInCombat())
+            return SPELL_FAILED_CASTER_AURASTATE;
 
         if (!m_IsTriggeredSpell 
             && NeedsComboPoints(m_spellInfo) 
@@ -6291,6 +6327,11 @@ SpellCastResult Spell::CheckCast(bool strict)
                     return SPELL_FAILED_ROOTED;
                 break;
             }
+            case SPELL_EFFECT_ADD_FARSIGHT:
+            {
+                if (m_caster->GetTypeId() != TYPEID_PLAYER || ((Player*)m_caster)->HasExternalViewPoint())
+                    return SPELL_FAILED_BAD_TARGETS;
+            }
             default:
                 break;
         }
@@ -6490,6 +6531,12 @@ SpellCastResult Spell::CheckCast(bool strict)
                         return SPELL_FAILED_BAD_TARGETS;
                 }
                 break;
+            }
+            case SPELL_AURA_FAR_SIGHT:
+            case SPELL_AURA_BIND_SIGHT:
+            {
+                if (m_caster->GetTypeId() != TYPEID_PLAYER || ((Player*)m_caster)->HasExternalViewPoint())
+                    return SPELL_FAILED_BAD_TARGETS;
             }
             default:
                 break;

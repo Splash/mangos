@@ -381,7 +381,7 @@ void TradeData::SetAccepted(bool state, bool crosssend /*= false*/)
 
 //== Player ====================================================
 
-Player::Player (WorldSession *session): Unit(), m_mover(this), m_camera(this), m_achievementMgr(this), m_reputationMgr(this)
+Player::Player (WorldSession *session): Unit(), m_mover(this), m_camera(NULL), m_achievementMgr(this), m_reputationMgr(this)
 {
     m_speakTime = 0;
     m_speakCount = 0;
@@ -578,6 +578,8 @@ Player::Player (WorldSession *session): Unit(), m_mover(this), m_camera(this), m
     SetPendingBind(NULL, 0);
     m_LFGState = new LFGPlayerState(this);
 
+    m_camera = new Camera(*this);
+
     m_cachedGS = 0;
 }
 
@@ -625,6 +627,7 @@ Player::~Player ()
     delete m_runes;
     delete m_anticheat;
     delete m_LFGState;
+    delete m_camera;
 
     // Playerbot mod
     if (m_playerbotAI)
@@ -1885,7 +1888,7 @@ bool Player::TeleportTo(WorldLocation const& loc, uint32 options)
             if (!map->PreloadGrid(loc.coord_x, loc.coord_y))
             {
                 // If loading grid not finished, delay teleport 5 map update ticks
-                AddEvent(new TeleportDelayEvent(*this, WorldLocation(loc.coord_x, loc.coord_y, loc.coord_z, loc.orientation, loc.mapid, map->GetInstanceId(), realmID), options),
+                AddEvent(new TeleportDelayEvent(*this, WorldLocation(loc.coord_x, loc.coord_y, loc.coord_z, loc.orientation, loc.mapid, map->GetInstanceId(), sWorld.getConfig(CONFIG_UINT32_REALMID)), options),
                     5 * sWorld.getConfig(CONFIG_UINT32_INTERVAL_MAPUPDATE));
 
                 DEBUG_LOG("Player::TeleportTo grid (map %u, instance %u, X%f Y%f) not fully loaded, far teleport %s delayed.", loc.mapid, map->GetInstanceId(), loc.coord_x, loc.coord_y, GetName());
@@ -2100,8 +2103,8 @@ void Player::RemoveFromWorld()
     ///- Do not add/remove the player from the object storage
     ///- It will crash when updating the ObjectAccessor
     ///- The player should only be removed when logging out
-    if (IsInWorld())
-        GetCamera().ResetView();
+    if (IsInWorld() && GetCamera())
+        GetCamera()->ResetView();
 
     Unit::RemoveFromWorld();
 }
@@ -2489,7 +2492,7 @@ void Player::SetGameMaster(bool on)
         getHostileRefManager().setOnlineOfflineState(true);
     }
 
-    m_camera.UpdateVisibilityForOwner();
+    GetCamera()->UpdateVisibilityForOwner();
     UpdateObjectVisibility();
     UpdateForQuestWorldObjects();
 }
@@ -4464,7 +4467,7 @@ void Player::DeleteFromDB(ObjectGuid playerguid, uint32 accountId, bool updateRe
     sAccountMgr.ClearPlayerDataCache(playerguid);
 
     if (updateRealmChars)
-        sAccountMgr.UpdateCharactersCount(accountId, realmID);
+        sAccountMgr.UpdateCharactersCount(accountId, sWorld.getConfig(CONFIG_UINT32_REALMID));
 }
 
 /**
@@ -4623,7 +4626,7 @@ void Player::ResurrectPlayer(float restore_percent, bool applySickness)
     UpdateZone(newzone,newarea);
 
     // update visibility of world around viewpoint
-    m_camera.UpdateVisibilityForOwner();
+    GetCamera()->UpdateVisibilityForOwner();
     // update visibility of player for nearby cameras
     UpdateObjectVisibility();
 
@@ -19382,7 +19385,7 @@ void Player::HandleStealthedUnitsDetection()
     MaNGOS::UnitListSearcher<MaNGOS::AnyStealthedCheck > searcher(stealthedUnits, u_check);
     Cell::VisitAllObjects(this, searcher, MAX_PLAYER_STEALTH_DETECT_RANGE);
 
-    WorldObject const* viewPoint = GetCamera().GetBody();
+    WorldObject const* viewPoint = GetCamera()->GetBody();
 
     for (std::list<Unit*>::const_iterator i = stealthedUnits.begin(); i != stealthedUnits.end(); ++i)
     {
@@ -20827,20 +20830,9 @@ void Player::SendInitialPacketsAfterAddToMap()
         SetRoot(true);
 
     // manual send package (have code in ApplyModifier(true,true); that don't must be re-applied.
-    if (HasAuraType(SPELL_AURA_MOD_ROOT))
+    if (HasAuraType(SPELL_AURA_MOD_ROOT) || GetVehicle())
     {
-        WorldPacket data2(SMSG_FORCE_MOVE_ROOT, 10);
-        data2 << GetPackGUID();
-        data2 << (uint32)2;
-        SendMessageToSet(&data2,true);
-    }
-
-    if (GetVehicle())
-    {
-        WorldPacket data3(SMSG_FORCE_MOVE_ROOT, 10);
-        data3 << GetPackGUID();
-        data3 << uint32((m_movementInfo.GetVehicleSeatFlags() & SEAT_FLAG_CAN_CAST) ? 2 : 0);
-        SendMessageToSet(&data3,true);
+        SetRoot(true);
     }
 
     SendAurasForTarget(this);
@@ -24903,4 +24895,26 @@ void Player::RefundItem(Item* item)
     SaveInventoryAndGoldToDB();
 
     CharacterDatabase.CommitTransaction();
+}
+
+void Player::SetViewPoint(WorldObject* target, bool immediate, bool update_far_sight_field)
+{
+    if (target && target->IsInWorld() && GetCamera())
+    {
+        if (immediate && (HasExternalViewPoint() && GetCamera()->GetBody() != target))
+        {
+            WorldPacket data(SMSG_CLEAR_FAR_SIGHT_IMMEDIATE, 0);
+            GetSession()->SendPacket(&data);
+        }
+        GetCamera()->SetView(target, update_far_sight_field);
+    }
+    else
+    {
+        if (immediate &&  HasExternalViewPoint())
+        {
+            WorldPacket data(SMSG_CLEAR_FAR_SIGHT_IMMEDIATE, 0);
+            GetSession()->SendPacket(&data);
+        }
+        GetCamera()->ResetView(update_far_sight_field);
+    }
 }

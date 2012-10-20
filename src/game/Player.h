@@ -1059,7 +1059,7 @@ class MANGOS_DLL_SPEC Player : public Unit
 
         bool TeleportTo(uint32 mapid, float x, float y, float z, float orientation, uint32 options = 0)
         {
-            return TeleportTo(WorldLocation(x, y, z, orientation, mapid, 0, realmID), options);
+            return TeleportTo(WorldLocation(x, y, z, orientation, mapid, 0, sWorld.getConfig(CONFIG_UINT32_REALMID)), options);
         }
 
         bool TeleportTo(WorldLocation const& loc, uint32 options = 0);
@@ -2274,6 +2274,9 @@ class MANGOS_DLL_SPEC Player : public Unit
         void InterruptTaxiFlying();
 
         ObjectGuid const& GetFarSightGuid() const { return GetGuidValue(PLAYER_FARSIGHT); }
+        Camera* GetCamera() { return m_camera; }
+        void    SetViewPoint(WorldObject* target, bool immediate = false, bool update_far_sight_field = true);
+        bool    HasExternalViewPoint() const { return m_camera->GetBody() != (WorldObject*)this; };
 
         uint32 GetSaveTimer() const { return m_nextSave; }
         void   SetSaveTimer(uint32 timer) { m_nextSave = timer; }
@@ -2307,8 +2310,6 @@ class MANGOS_DLL_SPEC Player : public Unit
 
         // Stealth detection system
         void HandleStealthedUnitsDetection();
-
-        Camera& GetCamera() { return m_camera; }
 
         virtual void SetPhaseMask(uint32 newPhaseMask, bool update);// overwrite Unit::SetPhaseMask
 
@@ -2736,7 +2737,7 @@ class MANGOS_DLL_SPEC Player : public Unit
         void RefundItem(Item* item);
 
         Unit* m_mover;
-        Camera m_camera;
+        Camera* m_camera;
 
         GridReference<Player> m_gridRef;
         MapReference m_mapRef;
