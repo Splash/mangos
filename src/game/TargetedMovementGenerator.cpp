@@ -57,7 +57,9 @@ void TargetedMovementGeneratorMedium<T, D>::_setTargetLocation(T& owner, bool up
     float x, y, z;
     bool targetIsVictim = owner.getVictim() && owner.getVictim()->GetObjectGuid() == i_target->GetObjectGuid();
 
-    if (updateDestination)
+    // i_path can be NULL in case this is the first call for this MMGen (via Update)
+    // Can happen for example if no path was created on MMGen-Initialize because of the owner being stunned
+    if (updateDestination || !i_path)
     {
         // prevent redundant micro-movement for pets, other followers.
         if ((fabs(i_offset) > M_NULL_F) && i_target->IsWithinDistInMap(&owner, i_offset + PET_FOLLOW_DIST))
@@ -87,8 +89,6 @@ void TargetedMovementGeneratorMedium<T, D>::_setTargetLocation(T& owner, bool up
     }
     else
     {
-        MANGOS_ASSERT(i_path);
-
         // the destination has not changed, we just need to refresh the path (usually speed change)
         G3D::Vector3 end = i_path->getEndPosition();
         x = end.x;
@@ -262,7 +262,7 @@ void ChaseMovementGenerator<Player>::Initialize(Player& owner)
 template<>
 void ChaseMovementGenerator<Creature>::Initialize(Creature& owner)
 {
-    owner.SetWalk(false);
+    owner.SetWalk(false, false);                            // Chase movement is running
     owner.addUnitState(UNIT_STAT_CHASE | UNIT_STAT_CHASE_MOVE);
     _setTargetLocation(owner, true);
 

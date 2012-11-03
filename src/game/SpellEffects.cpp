@@ -6922,7 +6922,7 @@ void Spell::DoSummonVehicle(SpellEffectIndex eff_idx, uint32 forceFaction)
 
     Creature* vehicle = m_caster->SummonCreature(vehicle_entry,px,py,pz,m_caster->GetOrientation(),summonType,GetSpellDuration(m_spellInfo),true);
 
-    if (vehicle && !vehicle->GetObjectGuid().IsVehicle())
+    if (vehicle && !vehicle->IsVehicle())
     {
         sLog.outError("DoSommonVehicle: Creature (guidlow %d, entry %d) summoned, but this is not vehicle. Correct VehicleId in creature_template.", vehicle->GetGUIDLow(), vehicle->GetEntry());
         vehicle->ForcedDespawn();
@@ -9888,6 +9888,14 @@ void Spell::EffectScriptEffect(SpellEffectIndex eff_idx)
                     unitTarget->RemoveAurasDueToSpell(62574);
 
                     m_caster->GetMotionMaster()->MoveFollow(unitTarget, PET_FOLLOW_DIST, unitTarget->GetAngle(m_caster));
+                    break;
+                }
+                case 62705:                                 // Auto-repair (Ulduar: RX-214)
+                {
+                    if (!unitTarget || !unitTarget->IsVehicle())
+                        return;
+
+                    unitTarget->SetHealthPercent(m_spellInfo->CalculateSimpleValue(eff_idx));
                     break;
                 }
                 case 62707:                                 // Grab (Ulduar: Ignis)

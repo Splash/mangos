@@ -150,7 +150,7 @@ m_creatureInfo(NULL)
     m_CreatureSpellCooldowns.clear();
     m_CreatureCategoryCooldowns.clear();
 
-    SetWalk(true);
+    SetWalk(true, true);
 }
 
 Creature::~Creature()
@@ -657,28 +657,26 @@ void Creature::Regenerate(Powers power)
             break;
         }
         case POWER_ENERGY:
+        {
             if (IsVehicle())
             {
-                if (VehicleEntry const* vehicleInfo = sVehicleStore.LookupEntry(GetCreatureInfo()->vehicleId))
+                switch (GetVehicleInfo()->m_powerType)
                 {
-
-                    switch (vehicleInfo->m_powerType)
-                    {
-                        case ENERGY_TYPE_PYRITE:
-                        case ENERGY_TYPE_BLOOD:
-                        case ENERGY_TYPE_OOZE:
+                    case ENERGY_TYPE_PYRITE:
+                    case ENERGY_TYPE_BLOOD:
+                    case ENERGY_TYPE_OOZE:
                         break;
 
-                        case ENERGY_TYPE_STEAM:
-                        default:
-                            addvalue = 10 * sWorld.getConfig(CONFIG_FLOAT_RATE_POWER_ENERGY);
+                    case ENERGY_TYPE_STEAM:
+                    default:
+                        addvalue = 10 * sWorld.getConfig(CONFIG_FLOAT_RATE_POWER_ENERGY);
                         break;
-                    }
                 }
             }
             else
                 addvalue = 20 * sWorld.getConfig(CONFIG_FLOAT_RATE_POWER_ENERGY);
             break;
+        }
         case POWER_FOCUS:
             addvalue = 24 * sWorld.getConfig(CONFIG_FLOAT_RATE_POWER_FOCUS);
             break;
@@ -1546,7 +1544,7 @@ void Creature::SetDeathState(DeathState s)
 
         SetHealth(GetMaxHealth());
         SetLootRecipient(NULL);
-        SetWalk(true);
+        SetWalk(true, true);
 
         if (GetTemporaryFactionFlags() & TEMPFACTION_RESTORE_RESPAWN)
             ClearTemporaryFaction();
@@ -2593,12 +2591,25 @@ uint8 Creature::GetSpellMaxIndex(uint8 activeState)
     return (spellList ? spellList->rbegin()->first : 0);
 }
 
-void Creature::SetWalk(bool enable)
+void Creature::SetWalk(bool enable, bool asDefault)
 {
+    if (asDefault)
+    {
+        if (enable)
+            clearUnitState(UNIT_STAT_RUNNING);
+        else
+            addUnitState(UNIT_STAT_RUNNING);
+    }
+
+    // Nothing changed?
+    if (enable == m_movementInfo.HasMovementFlag(MOVEFLAG_WALK_MODE))
+        return;
+
     if (enable)
         m_movementInfo.AddMovementFlag(MOVEFLAG_WALK_MODE);
     else
         m_movementInfo.RemoveMovementFlag(MOVEFLAG_WALK_MODE);
+
     WorldPacket data(enable ? SMSG_SPLINE_MOVE_SET_WALK_MODE : SMSG_SPLINE_MOVE_SET_RUN_MODE, 9);
     data << GetPackGUID();
     SendMessageToSet(&data, true);
